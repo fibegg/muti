@@ -128,7 +128,7 @@ func runInPlace(cfg *config.Config, repoRoot string, relDirs []string, operators
 		fmt.Fprintf(os.Stderr, "  ▶ Running: %s\n", probeCmd)
 		cmd := exec.Command("sh", "-c", probeCmd)
 		cmd.Dir = repoRoot
-		
+
 		probeStart := time.Now()
 		probeErr := cmd.Start()
 		if probeErr == nil {
@@ -138,7 +138,7 @@ func runInPlace(cfg *config.Config, repoRoot string, relDirs []string, operators
 			}()
 
 			ticker := time.NewTicker(100 * time.Millisecond)
-			
+
 			spinner := []rune{'⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'}
 			spinIdx := 0
 
@@ -160,11 +160,11 @@ func runInPlace(cfg *config.Config, repoRoot string, relDirs []string, operators
 						if pct > 1.0 {
 							pct = 1.0
 						}
-						
+
 						barLen := 20
 						filled := int(pct * float64(barLen))
 						empty := barLen - filled
-						
+
 						bar := ""
 						for i := 0; i < filled; i++ {
 							bar += "█"
@@ -172,7 +172,7 @@ func runInPlace(cfg *config.Config, repoRoot string, relDirs []string, operators
 						for i := 0; i < empty; i++ {
 							bar += "░"
 						}
-						
+
 						fmt.Fprintf(os.Stderr, "\r\033[K  %s [%s] %.0f%% (%s / %s)", spinChar, bar, pct*100, formatDuration(elapsed), formatDuration(maxDuration))
 					}
 				}
