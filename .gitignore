@@ -1,0 +1,48 @@
+# Binaries
+/muti
+muti-*
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+/dist/
+/bin/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+coverage.txt
+
+# Go workspace
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+
+# Temporary files
+tmp/
+*.tmp
+*.bak
+
+# GoReleaser
+dist/

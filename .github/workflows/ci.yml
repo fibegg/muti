@@ -1,0 +1,242 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+  pages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────
+  # Lint & Test
+  # ──────────────────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+      - name: Test
+        run: go test -race -coverprofile=coverage.out ./...
+
+      - name: Build
+        run: go build -o muti ./cmd/muti
+
+      - name: Smoke test
+        run: |
+          ./muti --help
+          ./muti list-operators
+          ./muti list-languages
+
+  # ──────────────────────────────────────────────────────────────────
+  # Build binaries (native CGO on each platform)
+  # ──────────────────────────────────────────────────────────────────
+  build-binaries:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cc: gcc
+          - runner: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            cc: aarch64-linux-gnu-gcc
+            cross: true
+          - runner: macos-latest
+            goos: darwin
+            goarch: amd64
+            cc: clang
+            cgo_cflags: "-arch x86_64"
+            cgo_ldflags: "-arch x86_64"
+          - runner: macos-latest
+            goos: darwin
+            goarch: arm64
+            cc: clang
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install cross-compiler
+        if: matrix.cross
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build
+        env:
+          CGO_ENABLED: "1"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CC: ${{ matrix.cc }}
+          CGO_CFLAGS: ${{ matrix.cgo_cflags || '' }}
+          CGO_LDFLAGS: ${{ matrix.cgo_ldflags || '' }}
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          go build \
+            -ldflags="-s -w -X main.version=${VERSION}" \
+            -o muti \
+            ./cmd/muti
+
+      - name: Package
+        run: tar czf "muti_${GITHUB_REF_NAME}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz" muti LICENSE README.md
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: muti-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: muti_*.tar.gz
+
+  # ──────────────────────────────────────────────────────────────────
+  # Create GitHub Release with all binaries
+  # ──────────────────────────────────────────────────────────────────
+  release:
+    needs: build-binaries
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum muti_*.tar.gz > checksums.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | head -2 | tail -1)
+          if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "$GITHUB_REF_NAME" ]; then
+            echo "body=Initial release" >> $GITHUB_OUTPUT
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s" "${PREV_TAG}..HEAD" \
+              | grep -v -E '^- (Merge|docs:|test:|ci:|chore:)' || true)
+            if [ -z "$CHANGELOG" ]; then
+              CHANGELOG="Bug fixes and improvements"
+            fi
+            EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+            echo "body<<$EOF" >> $GITHUB_OUTPUT
+            echo "$CHANGELOG" >> $GITHUB_OUTPUT
+            echo "$EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.body }}
+          files: |
+            dist/muti_*.tar.gz
+            dist/checksums.txt
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  # ──────────────────────────────────────────────────────────────────
+  # Multi-arch Docker build + push to GHCR
+  # ──────────────────────────────────────────────────────────────────
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ──────────────────────────────────────────────────────────────────
+  # Deploy GitHub Pages
+  # ──────────────────────────────────────────────────────────────────
+  pages:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

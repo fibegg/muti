@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>muti — Language-Agnostic Mutation Testing</title>
+  <meta name="description" content="Language-agnostic mutation testing engine powered by tree-sitter. Single binary, 14 operators, parallel execution. Ruby, Go, Python, JavaScript, TypeScript.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🧬</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --bg-card: rgba(255,255,255,0.03);
+      --bg-card-hover: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.06);
+      --border-hover: rgba(255,255,255,0.12);
+      --text: #e4e4e7;
+      --text-dim: #71717a;
+      --text-bright: #fafafa;
+      --accent: #a78bfa;
+      --accent-dim: #7c3aed;
+      --accent-glow: rgba(167,139,250,0.15);
+      --green: #34d399;
+      --red: #f87171;
+      --amber: #fbbf24;
+      --code-bg: rgba(0,0,0,0.4);
+      --font: 'Inter', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Ambient glow ── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -40%;
+      left: -20%;
+      width: 80%;
+      height: 80%;
+      background: radial-gradient(ellipse, rgba(124,58,237,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -30%;
+      right: -20%;
+      width: 70%;
+      height: 70%;
+      background: radial-gradient(ellipse, rgba(52,211,153,0.05) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      background: rgba(10,10,15,0.8);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+    }
+    .nav-brand {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-bright);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .nav-brand span { color: var(--accent); }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-github {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-dim) !important;
+    }
+    .nav-github svg { width: 18px; height: 18px; fill: currentColor; }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 120px 0 80px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(167,139,250,0.2);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 800;
+      color: var(--text-bright);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--green) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      color: var(--text-dim);
+      max-width: 600px;
+      margin: 0 auto 48px;
+      line-height: 1.7;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-dim), var(--accent));
+      color: white;
+      box-shadow: 0 4px 24px rgba(124,58,237,0.3);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 8px 32px rgba(124,58,237,0.45);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+    }
+    .hero-install {
+      margin-top: 40px;
+      display: flex;
+      justify-content: center;
+    }
+    .install-cmd {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 20px;
+      font-family: var(--mono);
+      font-size: 0.875rem;
+      color: var(--text-dim);
+      max-width: 100%;
+      overflow-x: auto;
+    }
+    .install-cmd code { color: var(--green); white-space: nowrap; }
+    .install-cmd .prompt { color: var(--accent); user-select: none; }
+
+    /* ── FEATURES GRID ── */
+    .features {
+      padding: 80px 0;
+    }
+    .section-label {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      text-align: center;
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      font-weight: 700;
+      color: var(--text-bright);
+      letter-spacing: -0.02em;
+      margin-bottom: 56px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      transition: all 0.3s;
+    }
+    .feature-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+    .feature-icon {
+      font-size: 1.75rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .how-it-works {
+      padding: 80px 0;
+    }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+      margin-bottom: 48px;
+    }
+    .step {
+      text-align: center;
+      padding: 24px;
+    }
+    .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--accent-glow);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 16px;
+      border: 1px solid rgba(167,139,250,0.2);
+    }
+    .step h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 6px;
+    }
+    .step p {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+
+    /* ── CONCEPTS ── */
+    .concepts {
+      padding: 80px 0;
+    }
+    .concept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+    .concept-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+    }
+    .concept-card h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 12px;
+    }
+    .concept-card h3 .tag {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--accent-glow);
+      color: var(--accent);
+      font-weight: 500;
+    }
+    .concept-card p {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+    .concept-card pre {
+      margin-top: 16px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .concept-card pre .comment { color: var(--text-dim); }
+    .concept-card pre .string { color: var(--green); }
+    .concept-card pre .flag { color: var(--accent); }
+    .concept-card pre .cmd { color: var(--amber); }
+
+    /* ── EXAMPLES ── */
+    .examples {
+      padding: 80px 0;
+    }
+    .example-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 0;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 10px 24px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      font-family: var(--font);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 10px 10px 0 0;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--bg-card); }
+    .tab-btn.active {
+      color: var(--accent);
+      background: var(--bg-card);
+      border-color: var(--border-hover);
+      border-bottom-color: transparent;
+    }
+    .tab-panels {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 0 16px 16px 16px;
+      overflow: hidden;
+    }
+    .tab-panel {
+      display: none;
+      padding: 32px;
+    }
+    .tab-panel.active { display: block; }
+    .tab-panel h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 6px;
+    }
+    .tab-panel .desc {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+    .tab-panel pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: var(--text);
+    }
+    .tab-panel pre + h3 { margin-top: 28px; }
+    .tab-panel pre .comment { color: var(--text-dim); }
+    .tab-panel pre .string { color: var(--green); }
+    .tab-panel pre .flag { color: var(--accent); }
+    .tab-panel pre .cmd { color: var(--amber); }
+
+    /* ── OPERATORS ── */
+    .operators {
+      padding: 80px 0;
+    }
+    .operators-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .operators-table th,
+    .operators-table td {
+      text-align: left;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+    .operators-table th {
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+    }
+    .operators-table tr:last-child td { border-bottom: none; }
+    .operators-table td:first-child {
+      font-family: var(--mono);
+      color: var(--accent);
+      font-weight: 500;
+      font-size: 0.82rem;
+    }
+    .operators-table td:last-child {
+      color: var(--text-dim);
+    }
+    .operators-table code {
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      background: var(--code-bg);
+      padding: 2px 7px;
+      border-radius: 5px;
+      color: var(--green);
+    }
+
+    /* ── INSTALL ── */
+    .install {
+      padding: 80px 0;
+    }
+    .install-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .install-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+    .install-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .install-card .sub {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+    .install-card pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: var(--green);
+      overflow-x: auto;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+    }
+    footer p {
+      color: var(--text-dim);
+      font-size: 0.82rem;
+    }
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .hero { padding: 80px 0 60px; }
+      .nav-links { gap: 16px; }
+      .nav-links a:not(.nav-github) { display: none; }
+      .steps { grid-template-columns: 1fr 1fr; }
+      .concept-grid { grid-template-columns: 1fr; }
+      .install-grid { grid-template-columns: 1fr; }
+      .example-tabs { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+      .operators-table { font-size: 0.8rem; }
+      .operators-table th, .operators-table td { padding: 10px 12px; }
+    }
+    @media (max-width: 480px) {
+      .steps { grid-template-columns: 1fr; }
+      .hero-actions { flex-direction: column; align-items: center; }
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero-badge, .hero h1, .hero p, .hero-actions, .hero-install {
+      animation: fadeUp 0.6s ease-out both;
+    }
+    .hero h1 { animation-delay: 0.1s; }
+    .hero p { animation-delay: 0.2s; }
+    .hero-actions { animation-delay: 0.3s; }
+    .hero-install { animation-delay: 0.4s; }
+
+    /* Scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="container">
+    <a href="#" class="nav-brand">🧬 <span>muti</span></a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#examples">Examples</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/fibegg/muti" class="nav-github" target="_blank">
+        <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">⚡ Powered by tree-sitter</div>
+    <h1>
+      Mutation testing<br>
+      <span class="gradient">for every language.</span>
+    </h1>
+    <p>
+      A single binary that mutates your source code and runs your tests.
+      If tests pass — your coverage has gaps. No plugins, no config files, no dependencies.
+    </p>
+    <div class="hero-actions">
+      <a href="https://github.com/fibegg/muti/releases/latest" class="btn btn-primary">
+        ↓ Download Latest
+      </a>
+      <a href="https://github.com/fibegg/muti" class="btn btn-secondary">
+        View on GitHub
+      </a>
+    </div>
+    <div class="hero-install">
+      <div class="install-cmd">
+        <span class="prompt">$</span>
+        <code>docker pull ghcr.io/fibegg/muti:latest</code>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-label reveal">Why muti</div>
+    <h2 class="section-title reveal">Built different.</h2>
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <span class="feature-icon">🌍</span>
+        <h3>Language-agnostic</h3>
+        <p>Ruby, Go, Python, JavaScript, TypeScript out of the box. Uses tree-sitter AST parsing — no language-specific plugins needed.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🧬</span>
+        <h3>14 mutation operators</h3>
+        <p>Boolean swaps, equality negation, arithmetic flips, guard clause removal, error handler deletion, and more. Real mutations, not toy examples.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">⚡</span>
+        <h3>In-place mutation</h3>
+        <p>Mutates files directly in your repo, runs your test suite, then resets via git checkout. Fast, simple, no overhead.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">📦</span>
+        <h3>Single binary</h3>
+        <p>One binary, zero runtime dependencies (except git). Download, run, done. Also available as a Docker image.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">🔌</span>
+        <h3>Tool pipeline</h3>
+        <p>Every mutation is emitted as JSON. Pipe it to echo, curl, a webhook, a file — integrate with anything.</p>
+      </div>
+      <div class="feature-card reveal">
+        <span class="feature-icon">♾️</span>
+        <h3>Continuous mode</h3>
+        <p>Run forever with <code>--forever</code> for ongoing mutation coverage in CI or background. Randomized mutations each round.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-it-works" id="how-it-works">
+  <div class="container">
+    <div class="section-label reveal">How it works</div>
+    <h2 class="section-title reveal">Mutate → Probe → Report</h2>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-num">1</div>
+        <h3>Mutate</h3>
+        <p>muti parses your source with tree-sitter and applies random AST mutations (swap booleans, negate conditions, etc.)</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">2</div>
+        <h3>Probe</h3>
+        <p>Your test suite — the <em>probe command</em> — runs against the mutated code. Any shell command works.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">3</div>
+        <h3>Verdict</h3>
+        <p>Tests fail? Mutation <strong style="color:var(--green)">killed</strong> ✓ — good coverage. Tests pass? Mutation <strong style="color:var(--red)">survived</strong> — coverage gap found.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">4</div>
+        <h3>Report</h3>
+        <p>Results stream as JSON to your configured tool — stdout, a webhook, a file, or any command.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KEY CONCEPTS -->
+<section class="concepts" id="concepts">
+  <div class="container">
+    <div class="section-label reveal">Key concepts</div>
+    <h2 class="section-title reveal">Three things to know.</h2>
+    <div class="concept-grid">
+      <div class="concept-card reveal">
+        <h3>The Probe <span class="tag">--</span></h3>
+        <p>Everything after <code>--</code> is your probe command — typically your test suite. If the probe exits non-zero, the mutation is killed (your tests caught it). If it exits zero, the mutation survived.</p>
+        <pre><span class="comment"># The probe is your test suite</span>
+muti <span class="flag">--dirs</span> <span class="string">app</span> <span class="flag">--</span> <span class="cmd">bundle exec rspec --fail-fast</span>
+muti <span class="flag">--dirs</span> <span class="string">src</span> <span class="flag">--</span> <span class="cmd">pytest -x</span>
+muti <span class="flag">--dirs</span> <span class="string">src</span> <span class="flag">--</span> <span class="cmd">npm test</span></pre>
+      </div>
+      <div class="concept-card reveal">
+        <h3>The Tool <span class="tag">--tool</span></h3>
+        <p>Each mutation result is serialized as JSON and piped to the tool's stdin. Default is <code>echo</code> (prints to stdout). Use it to send results anywhere.</p>
+        <pre><span class="comment"># Print to terminal (default)</span>
+muti <span class="flag">--tool</span> <span class="string">echo</span> <span class="flag">--</span> <span class="cmd">make test</span>
+
+<span class="comment"># Save to file</span>
+muti <span class="flag">--tool</span> <span class="string">'tee -a mutations.jsonl'</span> <span class="flag">--</span> <span class="cmd">make test</span>
+
+<span class="comment"># Send to a webhook</span>
+muti <span class="flag">--tool</span> <span class="string">'curl -s -X POST ...'</span> <span class="flag">--</span> <span class="cmd">make test</span></pre>
+      </div>
+      <div class="concept-card reveal">
+        <h3>Rounds &amp; Mutations <span class="tag">--rounds</span></h3>
+        <p>Each round applies one or more mutations, runs the probe, then resets. Control the batch size with <code>--mutations</code> (fixed) or <code>--mru</code> (random up to N).</p>
+        <pre><span class="comment"># 20 rounds, 3 mutations each</span>
+muti <span class="flag">--rounds</span> <span class="string">20</span> <span class="flag">--mutations</span> <span class="string">3</span> <span class="flag">--</span> <span class="cmd">make test</span>
+
+<span class="comment"># Random 1-7 mutations per round, forever</span>
+muti <span class="flag">--forever</span> <span class="flag">--mru</span> <span class="string">7</span> <span class="flag">--</span> <span class="cmd">make test</span>
+
+<span class="comment"># 4 parallel workers</span>
+muti <span class="flag">--parallel</span> <span class="string">4</span> <span class="flag">--rounds</span> <span class="string">100</span> <span class="flag">--</span> <span class="cmd">make test</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- EXAMPLES -->
+<section class="examples" id="examples">
+  <div class="container">
+    <div class="section-label reveal">Language examples</div>
+    <h2 class="section-title reveal">Works with your stack.</h2>
+    <div class="example-tabs reveal">
+      <button class="tab-btn active" data-tab="ruby">Ruby</button>
+      <button class="tab-btn" data-tab="python">Python</button>
+      <button class="tab-btn" data-tab="js">JavaScript / TypeScript</button>
+      <button class="tab-btn" data-tab="go">Go</button>
+    </div>
+    <div class="tab-panels reveal">
+      <div class="tab-panel active" id="tab-ruby">
+        <h3>Ruby / Rails</h3>
+        <p class="desc">Point at your app directory and use RSpec or Minitest as the probe.</p>
+        <pre><span class="comment"># Mutate app/ directory, use RSpec</span>
+muti <span class="flag">--dirs</span> <span class="string">app</span> <span class="flag">--</span> <span class="cmd">bundle exec rspec --fail-fast</span>
+
+<span class="comment"># Mutate specific directories</span>
+muti <span class="flag">--dirs</span> <span class="string">app/models,app/services</span> <span class="flag">--</span> <span class="cmd">bundle exec rspec --fail-fast</span>
+
+<span class="comment"># Run forever in CI with random 1-10 mutations</span>
+muti <span class="flag">--dirs</span> <span class="string">app</span> <span class="flag">--forever</span> <span class="flag">--mru</span> <span class="string">10</span> <span class="flag">--</span> <span class="cmd">bundle exec rspec --fail-fast</span>
+
+<span class="comment"># With Minitest</span>
+muti <span class="flag">--dirs</span> <span class="string">app</span> <span class="flag">--</span> <span class="cmd">bundle exec rails test</span></pre>
+      </div>
+      <div class="tab-panel" id="tab-python">
+        <h3>Python</h3>
+        <p class="desc">Works with pytest, unittest, or any test runner.</p>
+        <pre><span class="comment"># Mutate src/ directory, use pytest</span>
+muti <span class="flag">--dirs</span> <span class="string">src</span> <span class="flag">--</span> <span class="cmd">pytest -x --tb=short</span>
+
+<span class="comment"># Django project</span>
+muti <span class="flag">--dirs</span> <span class="string">myapp</span> <span class="flag">--</span> <span class="cmd">python manage.py test --failfast</span>
+
+<span class="comment"># Only .py files in a mixed-language project</span>
+muti <span class="flag">--dirs</span> <span class="string">src</span> <span class="flag">--extensions</span> <span class="string">py</span> <span class="flag">--</span> <span class="cmd">pytest -x</span>
+
+<span class="comment"># With coverage threshold check</span>
+muti <span class="flag">--dirs</span> <span class="string">src</span> <span class="flag">--</span> <span class="cmd">pytest -x --cov=src --cov-fail-under=80</span></pre>
+      </div>
+      <div class="tab-panel" id="tab-js">
+        <h3>JavaScript / TypeScript</h3>
+        <p class="desc">Supports .js, .jsx, .mjs, .cjs, .ts, .tsx files. Use any test runner.</p>
+        <pre><span class="comment"># Mutate src/ directory, use Jest</span>
+muti <span class="flag">--dirs</span> <span class="string">src</span> <span class="flag">--</span> <span class="cmd">npx jest --bail</span>
+
+<span class="comment"># Vitest</span>
+muti <span class="flag">--dirs</span> <span class="string">src</span> <span class="flag">--</span> <span class="cmd">npx vitest run</span>
+
+<span class="comment"># TypeScript only</span>
+muti <span class="flag">--dirs</span> <span class="string">src</span> <span class="flag">--extensions</span> <span class="string">ts,tsx</span> <span class="flag">--</span> <span class="cmd">npm test</span>
+
+<span class="comment"># Mocha</span>
+muti <span class="flag">--dirs</span> <span class="string">lib</span> <span class="flag">--</span> <span class="cmd">npx mocha --bail</span></pre>
+      </div>
+      <div class="tab-panel" id="tab-go">
+        <h3>Go</h3>
+        <p class="desc">Go test is the natural probe. Use -count=1 to prevent caching.</p>
+        <pre><span class="comment"># Mutate current directory</span>
+muti <span class="flag">--</span> <span class="cmd">go test -count=1 ./...</span>
+
+<span class="comment"># Mutate specific packages</span>
+muti <span class="flag">--dirs</span> <span class="string">internal</span> <span class="flag">--</span> <span class="cmd">go test -count=1 ./...</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- OPERATORS -->
+<section class="operators" id="operators">
+  <div class="container">
+    <div class="section-label reveal">14 mutation operators</div>
+    <h2 class="section-title reveal">Real mutations, real coverage gaps.</h2>
+    <table class="operators-table reveal">
+      <thead>
+        <tr><th>Operator</th><th>What it does</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>swap_boolean</td><td><code>true</code> ↔ <code>false</code></td></tr>
+        <tr><td>negate_equality</td><td><code>==</code> ↔ <code>!=</code></td></tr>
+        <tr><td>swap_logical</td><td><code>&&</code> ↔ <code>||</code>, <code>and</code> ↔ <code>or</code></td></tr>
+        <tr><td>flip_conditional</td><td>Swap if/else branches</td></tr>
+        <tr><td>swap_comparison</td><td><code>></code> ↔ <code><</code>, <code>>=</code> ↔ <code><=</code></td></tr>
+        <tr><td>swap_arithmetic</td><td><code>+</code> ↔ <code>-</code>, <code>*</code> ↔ <code>/</code></td></tr>
+        <tr><td>swap_integer</td><td><code>0</code> ↔ <code>1</code></td></tr>
+        <tr><td>empty_string</td><td>Replace string literal with <code>""</code></td></tr>
+        <tr><td>null_return</td><td><code>return expr</code> → <code>return nil</code></td></tr>
+        <tr><td>inject_early_return</td><td>Insert <code>return nil</code> at function start</td></tr>
+        <tr><td>remove_statement</td><td>Remove a random statement from a function body</td></tr>
+        <tr><td>remove_guard_clause</td><td>Remove early-return guard clauses</td></tr>
+        <tr><td>remove_error_handler</td><td>Remove rescue / except / catch blocks</td></tr>
+        <tr><td>replace_arg_with_null</td><td>Replace a method argument with <code>nil</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section class="install" id="install">
+  <div class="container">
+    <div class="section-label reveal">Get started</div>
+    <h2 class="section-title reveal">Install in seconds.</h2>
+    <div class="install-grid">
+      <div class="install-card reveal">
+        <h3>📦 Binary download</h3>
+        <p class="sub">Pre-built for Linux and macOS (amd64 + arm64)</p>
+        <pre>curl -sL https://github.com/fibegg/muti/releases/latest/download/muti_*_linux_amd64.tar.gz | tar xz
+sudo mv muti /usr/local/bin/</pre>
+      </div>
+      <div class="install-card reveal">
+        <h3>🐳 Docker</h3>
+        <p class="sub">Multi-arch image (linux/amd64, linux/arm64)</p>
+        <pre>docker pull ghcr.io/fibegg/muti:latest
+
+docker run --rm -v "$(pwd):/workspace" \
+  ghcr.io/fibegg/muti:latest \
+  --dirs src -- make test</pre>
+      </div>
+      <div class="install-card reveal">
+        <h3>🔨 From source</h3>
+        <p class="sub">Requires Go 1.23+, git, and a C compiler</p>
+        <pre>go install github.com/fibegg/muti/cmd/muti@latest
+
+<span style="color:var(--text-dim)"># or clone and build</span>
+git clone https://github.com/fibegg/muti.git
+cd muti && make build</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-links">
+      <a href="https://github.com/fibegg/muti">GitHub</a>
+      <a href="https://github.com/fibegg/muti/releases">Releases</a>
+      <a href="https://github.com/fibegg/muti/blob/main/README.md">Docs</a>
+      <a href="https://github.com/fibegg/muti/blob/main/LICENSE">MIT License</a>
+    </div>
+    <p>🧬 muti — language-agnostic mutation testing</p>
+  </div>
+</footer>
+
+<script>
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
