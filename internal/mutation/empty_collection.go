@@ -16,13 +16,13 @@ func (o *EmptyCollection) Apply(source []byte, tree *tree_sitter.Tree, lang *lan
 
 	// Node types for collection literals across languages
 	collectionTypes := []string{
-		"array",                   // Ruby, JS, Python
-		"hash",                    // Ruby
-		"dictionary",              // Python
-		"object",                  // JS/TS
-		"composite_literal",       // Go (partial — we handle below)
-		"list",                    // Python
-		"array_expression",        // TS
+		"array",             // Ruby, JS, Python
+		"hash",              // Ruby
+		"dictionary",        // Python
+		"object",            // JS/TS
+		"composite_literal", // Go (partial — we handle below)
+		"list",              // Python
+		"array_expression",  // TS
 	}
 
 	targets := collectNodesByTypes(root, collectionTypes)

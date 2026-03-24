@@ -19,11 +19,11 @@ func (o *ChangeArrayIndex) Apply(source []byte, tree *tree_sitter.Tree, lang *la
 
 	// Subscript/index access node types
 	subTypes := []string{
-		"subscript",          // Python
-		"index_expression",   // Go
-		"element_reference",  // Ruby
+		"subscript",            // Python
+		"index_expression",     // Go
+		"element_reference",    // Ruby
 		"subscript_expression", // JS/TS
-		"member_expression",  // skip — this is dot access
+		"member_expression",    // skip — this is dot access
 	}
 	// Only use actual index types
 	actualTypes := []string{
@@ -63,7 +63,7 @@ func (o *ChangeArrayIndex) Apply(source []byte, tree *tree_sitter.Tree, lang *la
 
 	val, err := strconv.ParseInt(old, 0, 64)
 	if err != nil {
-		return nil, nil, nil
+		return nil, nil, err
 	}
 
 	// Change index: 0→1, anything else→0

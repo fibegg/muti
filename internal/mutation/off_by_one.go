@@ -28,7 +28,7 @@ func (o *OffByOne) Apply(source []byte, tree *tree_sitter.Tree, lang *language.L
 
 	val, err := strconv.ParseInt(old, 0, 64)
 	if err != nil {
-		return nil, nil, nil
+		return nil, nil, err
 	}
 
 	// Add 1 to the value (the simplest off-by-one)

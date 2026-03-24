@@ -16,10 +16,10 @@ func (o *DuplicateStatement) Apply(source []byte, tree *tree_sitter.Tree, lang *
 
 	// Statement node types across languages
 	stmtTypes := []string{
-		"expression_statement", // JS/TS/Python/Go
-		"assignment",           // Ruby, Python
-		"call",                 // Ruby
-		"return_statement",     // JS/TS/Python
+		"expression_statement",  // JS/TS/Python/Go
+		"assignment",            // Ruby, Python
+		"call",                  // Ruby
+		"return_statement",      // JS/TS/Python
 		"short_var_declaration", // Go
 	}
 

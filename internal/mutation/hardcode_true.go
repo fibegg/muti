@@ -17,8 +17,8 @@ func (o *HardcodeTrue) Apply(source []byte, tree *tree_sitter.Tree, lang *langua
 
 	// Find if-statement nodes and target their condition expression
 	ifTypes := []string{
-		"if_statement", // Python, JS/TS, Go
-		"if",           // Ruby
+		"if_statement",  // Python, JS/TS, Go
+		"if",            // Ruby
 		"if_expression", // some grammars
 	}
 
