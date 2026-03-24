@@ -1,5 +1,7 @@
 # muti
 
+![muti demo](docs/muti.gif)
+
 [![CI](https://github.com/fibegg/muti/actions/workflows/ci.yml/badge.svg)](https://github.com/fibegg/muti/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/fibegg/muti)](https://goreportcard.com/report/github.com/fibegg/muti)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
