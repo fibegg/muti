@@ -126,8 +126,8 @@ func TestFilterOperators_SkipSome(t *testing.T) {
 
 func TestAllNames_Count(t *testing.T) {
 	names := AllNames()
-	if len(names) != 14 {
-		t.Errorf("expected 14 operators, got %d", len(names))
+	if len(names) != 15 {
+		t.Errorf("expected 15 operators, got %d", len(names))
 	}
 }
 
@@ -242,6 +242,40 @@ func TestNullReturn_Go(t *testing.T) {
 	}
 	if result.Mutated != "return" {
 		t.Errorf("expected 'return', got %q", result.Mutated)
+	}
+}
+
+func TestSwapHashKey_Go(t *testing.T) {
+	src := []byte("package main\nvar x = map[string]int{\"mykey\": 42}\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, mutated, err := (&SwapHashKey{}).Apply(src, tree, lang)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected mutation result, got nil")
+	}
+	if result.Operator != "swap_hash_key" {
+		t.Errorf("operator = %q", result.Operator)
+	}
+	if result.Original == result.Mutated {
+		t.Error("original and mutated should differ")
+	}
+	if string(mutated) == string(src) {
+		t.Error("mutated source should differ from original")
+	}
+}
+
+func TestSwapHashKey_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&SwapHashKey{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no hash keys")
 	}
 }
 

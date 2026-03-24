@@ -49,6 +49,7 @@ func All() []Operator {
 		&RemoveErrorHandler{},
 		&ReplaceArgWithNull{},
 		&SwapArithmetic{},
+		&SwapHashKey{},
 	}
 }
 
