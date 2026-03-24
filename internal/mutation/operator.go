@@ -50,6 +50,18 @@ func All() []Operator {
 		&ReplaceArgWithNull{},
 		&SwapArithmetic{},
 		&SwapHashKey{},
+		&OffByOne{},
+		&SwapIfElse{},
+		&EmptyCollection{},
+		&RemoveElse{},
+		&SwapArguments{},
+		&RemoveBreak{},
+		&NegateNumber{},
+		&ChangeArrayIndex{},
+		&RemoveMethodCall{},
+		&SwapTernary{},
+		&DuplicateStatement{},
+		&HardcodeTrue{},
 	}
 }
 

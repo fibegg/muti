@@ -126,8 +126,8 @@ func TestFilterOperators_SkipSome(t *testing.T) {
 
 func TestAllNames_Count(t *testing.T) {
 	names := AllNames()
-	if len(names) != 15 {
-		t.Errorf("expected 15 operators, got %d", len(names))
+	if len(names) != 27 {
+		t.Errorf("expected 27 operators, got %d", len(names))
 	}
 }
 
@@ -276,6 +276,167 @@ func TestSwapHashKey_NoTargets(t *testing.T) {
 	result, _, _ := (&SwapHashKey{}).Apply(src, tree, lang)
 	if result != nil {
 		t.Error("expected nil result on source with no hash keys")
+	}
+}
+
+func TestOffByOne_Go(t *testing.T) {
+	src := []byte("package main\nvar x = 5\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, mutated, err := (&OffByOne{}).Apply(src, tree, lang)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected mutation")
+	}
+	if result.Mutated != "6" {
+		t.Errorf("expected 5->6, got %q->%q", result.Original, result.Mutated)
+	}
+	if string(mutated) == string(src) {
+		t.Error("mutated source should differ")
+	}
+}
+
+func TestSwapIfElse_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&SwapIfElse{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no if/else")
+	}
+}
+
+func TestEmptyCollection_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&EmptyCollection{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no collections")
+	}
+}
+
+func TestRemoveElse_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&RemoveElse{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no else")
+	}
+}
+
+func TestSwapArguments_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&SwapArguments{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no function calls")
+	}
+}
+
+func TestRemoveBreak_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&RemoveBreak{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no break/continue")
+	}
+}
+
+func TestNegateNumber_Go(t *testing.T) {
+	src := []byte("package main\nvar x = 5\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, mutated, err := (&NegateNumber{}).Apply(src, tree, lang)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result == nil {
+		t.Fatal("expected mutation")
+	}
+	if result.Mutated != "-5" {
+		t.Errorf("expected 5->-5, got %q->%q", result.Original, result.Mutated)
+	}
+	if string(mutated) == string(src) {
+		t.Error("mutated source should differ")
+	}
+}
+
+func TestNegateNumber_Zero(t *testing.T) {
+	src := []byte("package main\nvar x = 0\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&NegateNumber{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on zero (negating 0 is pointless)")
+	}
+}
+
+func TestChangeArrayIndex_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&ChangeArrayIndex{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no array access")
+	}
+}
+
+func TestRemoveMethodCall_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&RemoveMethodCall{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no method calls")
+	}
+}
+
+func TestSwapTernary_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&SwapTernary{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no ternaries")
+	}
+}
+
+func TestDuplicateStatement_NoTargets(t *testing.T) {
+	src := []byte("package main\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&DuplicateStatement{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on minimal source")
+	}
+}
+
+func TestHardcodeTrue_NoTargets(t *testing.T) {
+	src := []byte("package main\nvar x = 42\n")
+	tree := parseGo(t, src)
+	lang := goLang(t)
+
+	result, _, _ := (&HardcodeTrue{}).Apply(src, tree, lang)
+	if result != nil {
+		t.Error("expected nil result on source with no if statements")
 	}
 }
 
